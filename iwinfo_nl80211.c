@@ -2901,6 +2901,8 @@ static int nl80211_get_freqlist_cb(struct nl_msg *msg, void *arg)
 			if (bands[NL80211_BAND_ATTR_FREQS]) {
 				nla_for_each_nested(freq, bands[NL80211_BAND_ATTR_FREQS], freqs_remain)
 				{
+					e->bandidx = nla_type(band) + 1;
+
 					nla_parse(freqs, NL80211_FREQUENCY_ATTR_MAX,
 						  nla_data(freq), nla_len(freq), NULL);
 
