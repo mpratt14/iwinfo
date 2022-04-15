@@ -613,44 +613,47 @@ static char * print_phyname(const struct iwinfo_ops *iw, const char *ifname)
 
 static void print_info(const struct iwinfo_ops *iw, const char *ifname)
 {
-	printf("%-9s ESSID: %s\n",
-		ifname,
-		print_ssid(iw, ifname));
-	printf("          Access Point: %s\n",
+	printf("%s\n",
+		ifname);
+	printf("	  PHY: %s\n",
+		print_phyname(iw, ifname));
+	printf("	  BSSID: %s\n",
 		print_bssid(iw, ifname));
-	printf("          Mode: %s  Channel: %s (%s)\n",
-		print_mode(iw, ifname),
+	printf("	  ESSID: %s\n",
+		print_ssid(iw, ifname));
+	printf("	  SW Mode: %s\n",
+		print_mode(iw, ifname));
+	printf("	  Channel: %s (%s)\n",
 		print_channel(iw, ifname),
 		print_frequency(iw, ifname));
-	if (iw->center_chan1 != NULL) {
-		printf("          Center Channel 1: %s",
-			print_center_chan1(iw, ifname));
-		printf(" 2: %s\n", print_center_chan2(iw, ifname));
-	}
-	printf("          Tx-Power: %s  Link Quality: %s/%s\n",
-		print_txpower(iw, ifname),
-		print_quality(iw, ifname),
-		print_quality_max(iw, ifname));
-	printf("          Signal: %s  Noise: %s\n",
+	printf("		Center Channel 1: %s 2: %s\n",
+		print_center_chan1(iw, ifname),
+		print_center_chan2(iw, ifname));
+	printf("	  Signal: %s / %s\n",
 		print_signal(iw, ifname),
 		print_noise(iw, ifname));
-	printf("          Bit Rate: %s\n",
+	printf("	  Quality: %s/%s\n",
+		print_quality(iw, ifname),
+		print_quality_max(iw, ifname));
+	printf("	  Rate: %s\n",
 		print_rate(iw, ifname));
-	printf("          Encryption: %s\n",
+	printf("	  Encryption: %s\n",
 		print_encryption(iw, ifname));
-	printf("          Type: %s  HW Mode(s): %s\n",
-		print_type(iw, ifname),
+	printf("	  TX-Power: %s\n",
+		print_txpower(iw, ifname));
+	printf("	  HW Mode: %s\n",
 		print_hwmodes(iw, ifname));
-	printf("          Hardware: %s [%s]\n",
+	printf("	  VAP Support: %s\n",
+		print_mbssid_supp(iw, ifname));
+	printf("	  Hardware: %s [%s]\n",
 		print_hardware_id(iw, ifname),
 		print_hardware_name(iw, ifname));
-	printf("          TX power offset: %s\n",
+	printf("	  TX-power offset: %s\n",
 		print_txpower_offset(iw, ifname));
-	printf("          Frequency offset: %s\n",
+	printf("	  Frequency offset: %s\n",
 		print_frequency_offset(iw, ifname));
-	printf("          Supports VAPs: %s  PHY name: %s\n",
-		print_mbssid_supp(iw, ifname),
-		print_phyname(iw, ifname));
+	printf("	  Library: %s\n",
+		print_type(iw, ifname));
 }
 
 
@@ -662,12 +665,12 @@ static void print_scanlist(const struct iwinfo_ops *iw, const char *ifname)
 
 	if (iw->scanlist(ifname, buf, &len))
 	{
-		printf("Scanning not possible\n\n");
+		fprintf(stderr, "Scanning not possible\n\n");
 		return;
 	}
 	else if (len <= 0)
 	{
-		printf("No scan results\n\n");
+		fprintf(stderr, "No scan results\n\n");
 		return;
 	}
 
@@ -675,39 +678,42 @@ static void print_scanlist(const struct iwinfo_ops *iw, const char *ifname)
 	{
 		e = (struct iwinfo_scanlist_entry *) &buf[i];
 
-		printf("Cell %02d - Address: %s\n",
-			x,
+		printf("STA %02d:\n",
+			x);
+		printf("	  BSSID: %s\n",
 			format_bssid(e->mac));
-		printf("          ESSID: %s\n",
+		printf("	  ESSID: %s\n",
 			format_ssid(e->ssid));
-		printf("          Mode: %s  Channel: %s\n",
-			IWINFO_OPMODE_NAMES[e->mode],
+		printf("	  SW Mode: %s\n",
+			IWINFO_OPMODE_NAMES[e->mode]);
+		printf("	  Channel: %s\n",
 			format_channel(e->channel));
-		printf("          Signal: %s  Quality: %s/%s\n",
-			format_signal(e->signal - 0x100),
+		printf("	  Signal: %s\n",
+			format_signal(e->signal - 0x100));
+		printf("	  Quality: %s/%s\n",
 			format_quality(e->quality),
 			format_quality_max(e->quality_max));
-		printf("          Encryption: %s\n",
+		printf("	  Encryption: %s\n",
 			format_encryption(&e->crypto));
-		printf("          HT Operation:\n");
-		printf("                    Primary Channel: %d\n",
+		printf("	  HT Operation:\n");
+		printf("		Primary Channel: %d\n",
 			e->ht_chan_info.primary_chan);
-		printf("                    Secondary Channel Offset: %s\n",
+		printf("		Secondary Channel Offset: %s\n",
 			ht_secondary_offset[e->ht_chan_info.secondary_chan_off]);
-		printf("                    Channel Width: %s\n",
+		printf("		Channel Width: %s\n",
 			format_chan_width(e->ht_chan_info.chan_width));
 
 		if (e->vht_chan_info.center_chan_1) {
-			printf("          VHT Operation:\n");
-			printf("                    Channel Width: %s\n",
+			printf("	  VHT Operation:\n");
+			printf("		Channel Width: %s\n",
 				format_chan_width(e->vht_chan_info.chan_width));
-			printf("                    Center Frequency 1: %d\n",
-				 e->vht_chan_info.center_chan_1);
-			printf("                    Center Frequency 2: %d\n",
-				 e->vht_chan_info.center_chan_2);
+			printf("		Center Frequency 1: %d\n",
+				e->vht_chan_info.center_chan_1);
+			printf("		Center Frequency 2: %d\n",
+				e->vht_chan_info.center_chan_2);
 		}
 
-		printf("\n");
+		printf("------\n");
 	}
 }
 
@@ -720,7 +726,7 @@ static void print_txpwrlist(const struct iwinfo_ops *iw, const char *ifname)
 
 	if (iw->txpwrlist(ifname, buf, &len) || len <= 0)
 	{
-		printf("No TX power information available\n");
+		fprintf(stderr, "No TX power information available\n");
 		return;
 	}
 
@@ -750,7 +756,7 @@ static void print_freqlist(const struct iwinfo_ops *iw, const char *ifname)
 
 	if (iw->freqlist(ifname, buf, &len) || len <= 0)
 	{
-		printf("No frequency information available\n");
+		fprintf(stderr, "No frequency information available\n");
 		return;
 	}
 
@@ -773,44 +779,46 @@ static void print_freqlist(const struct iwinfo_ops *iw, const char *ifname)
 
 static void print_assoclist(const struct iwinfo_ops *iw, const char *ifname)
 {
-	int i, len;
+	int i, x, len;
 	char buf[IWINFO_BUFSIZE];
 	struct iwinfo_assoclist_entry *e;
 
 	if (iw->assoclist(ifname, buf, &len))
 	{
-		printf("No information available\n");
+		fprintf(stderr, "No information available\n");
 		return;
 	}
 	else if (len <= 0)
 	{
-		printf("No station connected\n");
+		fprintf(stderr, "No station connected\n");
 		return;
 	}
 
-	for (i = 0; i < len; i += sizeof(struct iwinfo_assoclist_entry))
+	for (i = 0, x = 1; i < len; i += sizeof(struct iwinfo_assoclist_entry), x++)
 	{
 		e = (struct iwinfo_assoclist_entry *) &buf[i];
 
-		printf("%s  %s / %s (SNR %d)  %d ms ago\n",
-			format_bssid(e->mac),
-			format_signal(e->signal),
-			format_noise(e->noise),
-			(e->signal - e->noise),
+		printf("STA %02d: %8d ms ago\n",
+			x,
 			e->inactive);
-
-		printf("	RX: %-38s  %8d Pkts.\n",
+		printf("	  BSSID: %s\n",
+			format_bssid(e->mac));
+		printf("	  SNR: %d (%s / %s)\n",
+			e->noise ? (e->signal - e->noise) : 0,
+			format_signal(e->signal),
+			format_noise(e->noise));
+		printf("	  RX: %-38s %8d packets\n",
 			format_assocrate(&e->rx_rate),
 			e->rx_packets
 		);
-
-		printf("	TX: %-38s  %8d Pkts.\n",
+		printf("	  TX: %-38s %8d packets\n",
 			format_assocrate(&e->tx_rate),
 			e->tx_packets
 		);
-
-		printf("	expected throughput: %s\n\n",
+		printf("	  throughput: %s\n",
 			format_rate(e->thr));
+
+		printf("------\n");
 	}
 }
 
@@ -841,7 +849,7 @@ static void print_countrylist(const struct iwinfo_ops *iw, const char *ifname)
 
 	if (iw->countrylist(ifname, buf, &len))
 	{
-		printf("No country code information available\n");
+		fprintf(stderr, "No country code information available\n");
 		return;
 	}
 
@@ -865,7 +873,7 @@ static void print_htmodelist(const struct iwinfo_ops *iw, const char *ifname)
 
 	if (iw->htmodelist(ifname, &htmodes))
 	{
-		printf("No HT mode information available\n");
+		fprintf(stderr, "No HT mode information available\n");
 		return;
 	}
 
