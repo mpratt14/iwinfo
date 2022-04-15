@@ -238,6 +238,22 @@ static int get80211priv(const char *ifname, int op, void *data, size_t len)
 	return iwr.u.data.length;
 }
 
+static int madwifi_mhz2band(int *mhz)
+{
+	if (mhz >= 2412 && mhz <= 2484)
+		return 1;
+	else if (mhz >= 5160 && mhz <= 5885)
+		return 2;
+	else if (mhz >= 58320 && mhz <= 69120)
+		return 3;
+	else if (mhz >= 5925 && mhz <= 7125)
+		return 4;
+	else if (mhz >= 750 && mhz <= 930)
+		return 5;
+	else
+		return 0;
+}
+
 static char * madwifi_isvap(const char *ifname, const char *wifiname)
 {
 	int fd, ln;
@@ -929,6 +945,7 @@ static int madwifi_get_freqlist(const char *ifname, char *buf, int *len)
 		for( i = 0; i < chans.ic_nchans; i++ )
 		{
 			entry.mhz        = chans.ic_chans[i].ic_freq;
+			entry.bandidx    = madwifi_mhz2band(&chans.ic_chans[i].ic_freq);
 			entry.channel    = chans.ic_chans[i].ic_ieee;
 			entry.restricted = 0;
 

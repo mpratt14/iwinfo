@@ -42,6 +42,22 @@ static inline int wext_freq2mhz(const struct iw_freq *in)
 	}
 }
 
+static inline int wext_mhz2band(int *mhz)
+{
+	if (mhz >= 2412 && mhz <= 2484)
+		return 1;
+	else if (mhz >= 5160 && mhz <= 5885)
+		return 2;
+	else if (mhz >= 58320 && mhz <= 69120)
+		return 3;
+	else if (mhz >= 5925 && mhz <= 7125)
+		return 4;
+	else if (mhz >= 750 && mhz <= 930)
+		return 5;
+	else
+		return 0;
+}
+
 static inline int wext_ioctl(const char *ifname, int cmd, struct iwreq *wrq)
 {
 	if( !strncmp(ifname, "mon.", 4) )
@@ -395,6 +411,7 @@ static int wext_get_freqlist(const char *ifname, char *buf, int *len)
 		for(i = 0; i < range.num_frequency; i++)
 		{
 			entry.mhz        = wext_freq2mhz(&range.freq[i]);
+			entry.bandidx    = wext_mhz2band(&entry.mhz);
 			entry.channel    = range.freq[i].i;
 			entry.restricted = 0;
 
