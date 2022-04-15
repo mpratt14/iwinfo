@@ -44,6 +44,26 @@ static char * format_ssid(char *ssid)
 	return buf;
 }
 
+static char * format_band(int band)
+{
+	static char buf[8];
+
+	if (band == 1)
+		snprintf(buf, sizeof(buf), "2g");
+	else if (band == 2)
+		snprintf(buf, sizeof(buf), "5g");
+	else if (band == 3)
+		snprintf(buf, sizeof(buf), "60g");
+	else if (band == 4)
+		snprintf(buf, sizeof(buf), "6g");
+	else if (band == 5)
+		snprintf(buf, sizeof(buf), "s1g");
+	else
+		snprintf(buf, sizeof(buf), "unknown");
+
+	return buf;
+}
+
 static char * format_channel(int ch)
 {
 	static char buf[8];
@@ -741,9 +761,10 @@ static void print_freqlist(const struct iwinfo_ops *iw, const char *ifname)
 	{
 		e = (struct iwinfo_freqlist_entry *) &buf[i];
 
-		printf("%s %s (Channel %s)%s\n",
+		printf("%s %s <Band %s> (Channel %s)%s\n",
 			(ch == e->channel) ? "*" : " ",
 			format_frequency(e->mhz),
+			format_band(e->bandidx),
 			format_channel(e->channel),
 			e->restricted ? " [restricted]" : "");
 	}

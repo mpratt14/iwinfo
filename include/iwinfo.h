@@ -165,6 +165,7 @@ struct iwinfo_txpwrlist_entry {
 };
 
 struct iwinfo_freqlist_entry {
+	uint16_t bandidx;
 	uint8_t channel;
 	uint32_t mhz;
 	uint8_t restricted;
