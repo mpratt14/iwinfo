@@ -480,6 +480,10 @@ static int iwinfo_L_freqlist(lua_State *L, int (*func)(const char *, char *, int
 
 			lua_newtable(L);
 
+			/* Band */
+			lua_pushinteger(L, e->bandidx);
+			lua_setfield(L, -2, "band");
+
 			/* MHz */
 			lua_pushinteger(L, e->mhz);
 			lua_setfield(L, -2, "mhz");
