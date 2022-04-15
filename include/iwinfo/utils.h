@@ -66,5 +66,6 @@ int ieee80211_channel_to_frequency(int chan, int band); //enum nl80211_band band
 int ieee80211_frequency_to_channel(int freq); //freq in MHz
 
 int hostapd_mode2band(const char *mode); //return int in enum nl80211_band
+int iwinfo_mhz2band(int mhz); //return int in enum nl80211_band
 
 #endif

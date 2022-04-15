@@ -645,3 +645,19 @@ int hostapd_mode2band(const char *mode)
 	else
 		return -4;
 }
+
+int iwinfo_mhz2band(int mhz)
+{
+	if (mhz >= 2412 && mhz <= 2484)
+		return 0;
+	else if (mhz >= 5160 && mhz <= 5885)
+		return 1;
+	else if (mhz >= 58320 && mhz <= 69120)
+		return 2;
+	else if (mhz >= 5925 && mhz <= 7125)
+		return 3;
+	else if (mhz >= 750 && mhz <= 930)
+		return 4;
+	else
+		return -1;
+}

@@ -929,6 +929,7 @@ static int madwifi_get_freqlist(const char *ifname, char *buf, int *len)
 		for( i = 0; i < chans.ic_nchans; i++ )
 		{
 			entry.mhz        = chans.ic_chans[i].ic_freq;
+			entry.bandidx    = iwinfo_mhz2band(entry.mhz) + 1;
 			entry.channel    = chans.ic_chans[i].ic_ieee;
 			entry.restricted = 0;
 
