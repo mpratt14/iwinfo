@@ -3388,6 +3388,11 @@ static int nl80211_hardware_id_from_fdt(struct iwinfo_hardware_id *id, const cha
 		id->device_id = 0x7622;
 		id->subsystem_vendor_id = 0x14c3;
 		id->subsystem_device_id = 0x7622;
+	} else if (memmem(compat, sizeof(compat), "rt28", 4) != NULL) {
+		id->vendor_id = 0x1814;
+		id->device_id = 0x2800;
+		id->subsystem_vendor_id = 0x1814;
+		id->subsystem_device_id = 0x2800;
 	}
 	return (id->vendor_id && id->device_id) ? 0 : -1;
 }
