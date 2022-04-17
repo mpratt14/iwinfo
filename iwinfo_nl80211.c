@@ -3355,6 +3355,18 @@ static int nl80211_hardware_id_from_fdt(struct iwinfo_hardware_id *id, const cha
 		id->device_id = 0x7622;
 		id->subsystem_vendor_id = 0x14c3;
 		id->subsystem_device_id = 0x7622;
+	} else if (strstr(compat, "pci") != NULL) {
+		char *vendor;
+		char *device;
+
+		vendor = device = strtok(compat, "pci");
+		vendor = strtok(device, ",");
+		device = strtok(NULL, ",");
+
+		id->vendor_id = strtoul(vendor, NULL, 16);
+		id->device_id = strtoul(device, NULL, 16);
+		id->subsystem_vendor_id = strtoul(vendor, NULL, 16);
+		id->subsystem_device_id = strtoul(device, NULL, 16);
 	}
 	return (id->vendor_id && id->device_id) ? 0 : -1;
 }
