@@ -3428,15 +3428,7 @@ static int nl80211_get_hardware_id(const char *ifname, char *buf)
 	/* Try to determine the phy name from the given interface */
 	phy = nl80211_ifname2phy(ifname);
 
-	for (i = 0; i < ARRAY_SIZE(lookup); i++)
-	{
-		snprintf(path, sizeof(path), "/sys/class/%s/%s/device/%s",
-		         phy ? "ieee80211" : "net",
-		         phy ? phy : ifname, lookup[i].path);
-
-		if (nl80211_readstr(path, num, sizeof(num)) > 0)
-			*lookup[i].dest = strtoul(num, NULL, 16);
-	}
+	printf("fdt only test\n");
 
 	/* Failed to obtain hardware IDs, try FDT */
 	if (id->vendor_id == 0 || id->device_id == 0)
