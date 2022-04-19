@@ -62,4 +62,9 @@ void iwinfo_uci_free(void);
 int iwinfo_ubus_query(const char *ifname, const char *field,
                       char *buf, size_t len);
 
+int ieee80211_channel_to_frequency(int chan, int band); //enum nl80211_band band
+int ieee80211_frequency_to_channel(int freq); //freq in MHz
+
+int hostapd_mode2band(const char *mode); //return int in enum nl80211_band
+
 #endif

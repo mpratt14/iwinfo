@@ -641,45 +641,6 @@ static int __nl80211_wait(const char *family, const char *group, ...)
 #define nl80211_wait(family, group, ...) \
 	__nl80211_wait(family, group, __VA_ARGS__, 0)
 
-
-static int nl80211_freq2channel(int freq)
-{
-	if (freq == 2484)
-		return 14;
-	else if (freq < 2484)
-		return (freq - 2407) / 5;
-	else if (freq >= 4910 && freq <= 4980)
-		return (freq - 4000) / 5;
-	else if(freq >= 56160 + 2160 * 1 && freq <= 56160 + 2160 * 6)
-		return (freq - 56160) / 2160;
-	else
-		return (freq - 5000) / 5;
-}
-
-static int nl80211_channel2freq(int channel, const char *band)
-{
-	if (!band || band[0] != 'a')
-	{
-		if (channel == 14)
-			return 2484;
-		else if (channel < 14)
-			return (channel * 5) + 2407;
-	}
-	else if ( strcmp(band, "ad") == 0)
-	{
-		return 56160 + 2160 * channel;
-	}
-	else
-	{
-		if (channel >= 182 && channel <= 196)
-			return (channel * 5) + 4000;
-		else
-			return (channel * 5) + 5000;
-	}
-
-	return 0;
-}
-
 static int nl80211_ifname2phy_cb(struct nl_msg *msg, void *arg)
 {
 	char *buf = arg;
@@ -1291,7 +1252,7 @@ static int nl80211_get_frequency_info_cb(struct nl_msg *msg, void *arg)
 
 static int nl80211_get_frequency(const char *ifname, int *buf)
 {
-	char *res, channel[4], hwmode[3];
+	char *res, channel[4], hwmode[3], opclass[4];
 
 	/* try to find frequency from interface info */
 	res = nl80211_phy2ifname(ifname);
@@ -1305,7 +1266,13 @@ static int nl80211_get_frequency(const char *ifname, int *buf)
 	    nl80211_hostapd_query(ifname, "hw_mode", hwmode, sizeof(hwmode),
 	                                  "channel", channel, sizeof(channel)) == 2)
 	{
-		*buf = nl80211_channel2freq(atoi(channel), hwmode);
+		/* differentiate 6 GHz from 5 GHz in mode 'a' */
+		if (nl80211_hostapd_query(ifname, "op_class", opclass, sizeof(opclass)))
+			*buf = ieee80211_channel_to_frequency(atoi(channel),
+				hostapd_mode2band(hwmode) + (NL80211_BAND_6GHZ - NL80211_BAND_5GHZ));
+		else
+			*buf = ieee80211_channel_to_frequency(atoi(channel),
+				hostapd_mode2band(hwmode));
 	}
 
 	/* failed, try to find frequency from scan results */
@@ -1374,7 +1341,7 @@ static int nl80211_get_channel(const char *ifname, int *buf)
 {
 	if (!nl80211_get_frequency(ifname, buf))
 	{
-		*buf = nl80211_freq2channel(*buf);
+		*buf = ieee80211_frequency_to_channel(*buf);
 		return 0;
 	}
 
@@ -1385,7 +1352,7 @@ static int nl80211_get_center_chan1(const char *ifname, int *buf)
 {
 	if (!nl80211_get_center_freq1(ifname, buf))
 	{
-		*buf = nl80211_freq2channel(*buf);
+		*buf = ieee80211_frequency_to_channel(*buf);
 		return 0;
 	}
 
@@ -1396,7 +1363,7 @@ static int nl80211_get_center_chan2(const char *ifname, int *buf)
 {
 	if (!nl80211_get_center_freq2(ifname, buf))
 	{
-		*buf = nl80211_freq2channel(*buf);
+		*buf = ieee80211_frequency_to_channel(*buf);
 		return 0;
 	}
 
@@ -2317,7 +2284,7 @@ static int nl80211_get_txpwrlist_cb(struct nl_msg *msg, void *arg)
 			nla_parse(freqs, NL80211_FREQUENCY_ATTR_MAX,
 			          nla_data(freq), nla_len(freq), freq_policy);
 
-			ch_cmp = nl80211_freq2channel(nla_get_u32(
+			ch_cmp = ieee80211_frequency_to_channel(nla_get_u32(
 				freqs[NL80211_FREQUENCY_ATTR_FREQ]));
 
 			if ((!ch_cur || (ch_cmp == ch_cur)) &&
@@ -2520,7 +2487,7 @@ static int nl80211_get_scanlist_cb(struct nl_msg *msg, void *arg)
 		sl->e->crypto.enabled = 1;
 
 	if (bss[NL80211_BSS_FREQUENCY])
-		sl->e->channel = nl80211_freq2channel(nla_get_u32(
+		sl->e->channel = ieee80211_frequency_to_channel(nla_get_u32(
 			bss[NL80211_BSS_FREQUENCY]));
 
 	if (bss[NL80211_BSS_INFORMATION_ELEMENTS])
@@ -2743,7 +2710,7 @@ static int nl80211_get_scanlist_wpactl(const char *ifname, char *buf, int *len)
 				e->mode = IWINFO_OPMODE_MASTER;
 
 			/* Channel */
-			e->channel = nl80211_freq2channel(atoi(freq));
+			e->channel = ieee80211_frequency_to_channel(atoi(freq));
 
 			/* Signal */
 			rssi = atoi(signal);
@@ -2909,7 +2876,7 @@ static int nl80211_get_freqlist_cb(struct nl_msg *msg, void *arg)
 						continue;
 
 					e->mhz = nla_get_u32(freqs[NL80211_FREQUENCY_ATTR_FREQ]);
-					e->channel = nl80211_freq2channel(e->mhz);
+					e->channel = ieee80211_frequency_to_channel(e->mhz);
 
 					e->restricted = (
 						freqs[NL80211_FREQUENCY_ATTR_NO_IR] &&
