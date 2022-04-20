@@ -326,7 +326,9 @@ static int nl80211_phy_idx_from_path(const char *path)
 		if (strcmp(cur_path + cur_path_len - path_len, path) != 0)
 			continue;
 
-		snprintf(buf, sizeof(buf), "/sys/class/ieee80211/%s/index", e->d_name);
+		if (snprintf(buf, sizeof(buf), "/sys/class/ieee80211/%s/index", e->d_name) >= sizeof(buf))
+			continue;
+
 		idx = nl80211_readint(buf);
 
 		if (idx >= 0)
@@ -670,7 +672,7 @@ static char * nl80211_ifname2phy(const char *ifname)
 static char * nl80211_phy2ifname(const char *ifname)
 {
 	int ifidx = -1, cifidx = -1, phyidx = -1;
-	char buffer[64];
+	char buffer[128];
 	static char nif[IFNAMSIZ] = { 0 };
 
 	DIR *d;
@@ -694,13 +696,15 @@ static char * nl80211_phy2ifname(const char *ifname)
 		{
 			while ((e = readdir(d)) != NULL)
 			{
-				snprintf(buffer, sizeof(buffer),
-				         "/sys/class/net/%s/phy80211/index", e->d_name);
+				if (snprintf(buffer, sizeof(buffer),
+					"/sys/class/net/%s/phy80211/index", e->d_name) >= sizeof(buffer))
+						continue;
 
 				if (nl80211_readint(buffer) == phyidx)
 				{
-					snprintf(buffer, sizeof(buffer),
-					         "/sys/class/net/%s/ifindex", e->d_name);
+					if (snprintf(buffer, sizeof(buffer),
+						"/sys/class/net/%s/ifindex", e->d_name) >= sizeof(buffer))
+							continue;
 
 					if ((cifidx = nl80211_readint(buffer)) >= 0 &&
 					    ((ifidx < 0) || (cifidx < ifidx)))

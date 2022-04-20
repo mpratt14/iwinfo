@@ -66,7 +66,7 @@ static char * format_band(int band)
 
 static char * format_channel(int ch)
 {
-	static char buf[8];
+	static char buf[11];
 
 	if (ch <= 0)
 		snprintf(buf, sizeof(buf), "unknown");
@@ -90,7 +90,7 @@ static char * format_frequency(int freq)
 
 static char * format_txpower(int pwr)
 {
-	static char buf[10];
+	static char buf[16];
 
 	if (pwr < 0)
 		snprintf(buf, sizeof(buf), "unknown");
@@ -102,7 +102,7 @@ static char * format_txpower(int pwr)
 
 static char * format_quality(int qual)
 {
-	static char buf[8];
+	static char buf[11];
 
 	if (qual < 0)
 		snprintf(buf, sizeof(buf), "unknown");
@@ -114,7 +114,7 @@ static char * format_quality(int qual)
 
 static char * format_quality_max(int qmax)
 {
-	static char buf[8];
+	static char buf[11];
 
 	if (qmax < 0)
 		snprintf(buf, sizeof(buf), "unknown");
@@ -126,7 +126,7 @@ static char * format_quality_max(int qmax)
 
 static char * format_signal(int sig)
 {
-	static char buf[10];
+	static char buf[16];
 
 	if (!sig)
 		snprintf(buf, sizeof(buf), "unknown");
@@ -138,7 +138,7 @@ static char * format_signal(int sig)
 
 static char * format_noise(int noise)
 {
-	static char buf[10];
+	static char buf[16];
 
 	if (!noise)
 		snprintf(buf, sizeof(buf), "unknown");
