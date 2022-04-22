@@ -846,18 +846,40 @@ static int __nl80211_hostapd_query(const char *ifname, ...)
 static inline int nl80211_wpactl_recv(int sock, char *buf, int blen)
 {
 	fd_set rfds;
-	struct timeval tv = { 0, 256000 };
+	struct timeval tv;
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	int res, errno;
+
+	printf("entered wpactl_recv\n");
 
 	FD_ZERO(&rfds);
 	FD_SET(sock, &rfds);
 
+	printf("FD_SET passed\n");
+
 	memset(buf, 0, blen);
 
-	if (select(sock + 1, &rfds, NULL, NULL, &tv) < 0)
-		return -1;
+	printf("cleared buffer\n");
+
+	res = select(sock + 1, &rfds, NULL, NULL, &tv);
+
+	printf("sock selection attempt\n");
+
+	if (res < 0 && errno == EINTR)
+		return 0;
+
+	printf("no error EINTR\n");
+
+	if (res < 0)
+		return res;
+
+	printf("sock selection passed\n");
 
 	if (!FD_ISSET(sock, &rfds))
-		return -1;
+		return 0;
+
+	printf("FD_ISSET good\n");
 
 	return recv(sock, buf, blen - 1, 0);
 }
@@ -867,32 +889,13 @@ static int nl80211_wpactl_connect(const char *ifname, struct sockaddr_un *local)
 	struct sockaddr_un remote = { 0 };
 	size_t remote_length, local_length;
 
-	int sock = socket(PF_UNIX, SOCK_DGRAM, 0);
+	printf("entered wpactl_connect\n");
+
+	int sock = socket(PF_UNIX, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, 0);
 	if (sock < 0)
 		return sock;
 
-	remote.sun_family = AF_UNIX;
-	remote_length = sizeof(remote.sun_family) +
-		sprintf(remote.sun_path, "/var/run/wpa_supplicant-%s/%s",
-		        ifname, ifname);
-
-	if (fcntl(sock, F_SETFD, fcntl(sock, F_GETFD) | FD_CLOEXEC) < 0)
-	{
-		close(sock);
-		return -1;
-	}
-
-	if (connect(sock, (struct sockaddr *)&remote, remote_length))
-	{
-		remote_length = sizeof(remote.sun_family) +
-			sprintf(remote.sun_path, "/var/run/wpa_supplicant/%s", ifname);
-
-		if (connect(sock, (struct sockaddr *)&remote, remote_length))
-		{
-			close(sock);
-			return -1;
-		}
-	}
+	printf("socket fd created: %d\n", sock);
 
 	local->sun_family = AF_UNIX;
 	local_length = sizeof(local->sun_family) +
@@ -900,9 +903,37 @@ static int nl80211_wpactl_connect(const char *ifname, struct sockaddr_un *local)
 
 	if (bind(sock, (struct sockaddr *)local, local_length) < 0)
 	{
+		printf("local sock failed\n");
+
 		close(sock);
 		return -1;
 	}
+
+	printf("local sock successful\n");
+
+	remote.sun_family = AF_UNIX;
+	remote_length = sizeof(remote.sun_family) +
+		sprintf(remote.sun_path, "/var/run/wpa_supplicant-%s/%s",
+		        ifname, ifname);
+
+	if (connect(sock, (struct sockaddr *)&remote, remote_length))
+	{
+
+		printf("old path failed\n");
+
+		remote_length = sizeof(remote.sun_family) +
+			sprintf(remote.sun_path, "/var/run/wpa_supplicant/%s", ifname);
+
+		if (connect(sock, (struct sockaddr *)&remote, remote_length))
+		{
+			printf("new path failed\n");
+
+			close(sock);
+			return -1;
+		}
+	}
+
+	printf("remote sock connect successful\n");
 
 	return sock;
 }
@@ -911,21 +942,31 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 {
 	va_list ap, ap_cur;
 	struct sockaddr_un local = { 0 };
-	int len, mode, found = 0, sock = -1;
+	int res, errno, tries, len, mode, found = 0, sock = -1;
 	char *search, *dest, *key, *val, *line, *pos, buf[512];
+
+	printf("entered wpactl_query\n");
 
 	if (nl80211_get_mode(ifname, &mode))
 		return 0;
+
+	printf("got mode\n");
 
 	if (mode != IWINFO_OPMODE_CLIENT &&
 	    mode != IWINFO_OPMODE_ADHOC &&
 	    mode != IWINFO_OPMODE_MESHPOINT)
 		return 0;
 
+	printf("mode accepted\n");
+
 	sock = nl80211_wpactl_connect(ifname, &local);
+
+	printf("connect attempted\n");
 
 	if (sock < 0)
 		return 0;
+
+	printf("connect successful\n");
 
 	va_start(ap, ifname);
 
@@ -942,15 +983,56 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 
 	va_end(ap_cur);
 
-	send(sock, "STATUS", 6, 0);
+	printf("arguments parsed\n");
+
+	tries = 0;
+	while (tries < 10)
+	{
+		errno = 0;
+		res = send(sock, "STATUS", 6, 0);
+
+		if (res > 4)
+			break;
+
+		if (errno == EAGAIN || errno == EBUSY || errno == EWOULDBLOCK)
+			sleep(1);
+
+		tries++;
+	}
+
+	printf("sent STATUS num tries %d\n", tries);
 
 	while (true)
 	{
-		if (nl80211_wpactl_recv(sock, buf, sizeof(buf)) <= 0)
+		printf("entered loop\n");
+
+		res = nl80211_wpactl_recv(sock, buf, sizeof(buf));
+
+		printf("passed wpactl_recv\n");
+
+		if (res < 0)
 			break;
 
-		if (buf[0] == '<')
+		printf("buffer recieved\n");
+
+		if (res > 0 && buf[0] == '<')
 			continue;
+
+		printf("buffer greater than 0 and has message\n");
+
+		if (res > 6 && strncmp(buf, "IFNAME=", 7) == 0)
+			continue;
+
+		printf("buffer greater than 6 and has message\n");
+
+		if (res < 4)
+			continue;
+
+		printf("buffer greater than 4\n");
+
+		printf("buffer printing\n");
+		printf("%s\n", buf);
+		printf("buffer printed\n");
 
 		for (line = strtok_r(buf, "\n", &pos);
 			 line != NULL;
@@ -962,7 +1044,11 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 			if (!key || !val)
 				continue;
 
+			printf("key and value exist\n");
+
 			va_copy(ap_cur, ap);
+
+			printf("key and value parsed\n");
 
 			while ((search = va_arg(ap_cur, char *)) != NULL)
 			{
@@ -971,14 +1057,20 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 
 				if (!strcmp(search, key))
 				{
+					printf("key matched\n");
+
 					strncpy(dest, val, len - 1);
 					found++;
 					break;
 				}
 			}
 
+			printf("end of parsing\n");
+
 			va_end(ap_cur);
 		}
+
+		printf("end of loop\n");
 
 		break;
 	}
@@ -987,6 +1079,8 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 
 	close(sock);
 	unlink(local.sun_path);
+
+	printf("close and unlink\n");
 
 	return found;
 }
@@ -1729,6 +1823,8 @@ static int nl80211_get_encryption(const char *ifname, char *buf)
 
 	struct iwinfo_crypto_entry *c = (struct iwinfo_crypto_entry *)buf;
 
+	printf("entered get_encryption\n");
+
 	/* WPA supplicant */
 	if (nl80211_wpactl_query(ifname,
 			"pairwise_cipher", wpa_pairwise,  sizeof(wpa_pairwise),
@@ -1736,6 +1832,9 @@ static int nl80211_get_encryption(const char *ifname, char *buf)
 			"key_mgmt",        wpa_key_mgmt,  sizeof(wpa_key_mgmt),
 			"mode",            mode,          sizeof(mode)))
 	{
+
+		printf("passed wpactl_query\n");
+
 		/* WEP or Open */
 		if (!strcmp(wpa_key_mgmt, "NONE"))
 		{
@@ -2634,6 +2733,10 @@ static int nl80211_get_scanlist_wpactl(const char *ifname, char *buf, int *len)
 		if (nl80211_wpactl_recv(sock, reply, sizeof(reply)) <= 0)
 			continue;
 
+		printf("buffer printing\n");
+		printf("%s\n", reply);
+		printf("buffer printed\n");
+
 		/* got an event notification */
 		if (reply[0] == '<')
 		{
@@ -2665,6 +2768,11 @@ static int nl80211_get_scanlist_wpactl(const char *ifname, char *buf, int *len)
 	/* receive and parse scan results if the wait above didn't time out */
 	while (ready && nl80211_wpactl_recv(sock, reply, sizeof(reply)) > 0)
 	{
+
+		printf("buffer printing\n");
+		printf("%s\n", reply);
+		printf("buffer printed\n");
+
 		/* received an event notification, receive again */
 		if (reply[0] == '<')
 			continue;
