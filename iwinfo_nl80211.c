@@ -949,6 +949,10 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 		if (nl80211_wpactl_recv(sock, buf, sizeof(buf)) <= 0)
 			break;
 
+		printf("printing buffer\n");
+		printf("%s\n", buf);
+		printf("printed buffer\n");
+
 		if (buf[0] == '<')
 			continue;
 
@@ -2634,6 +2638,10 @@ static int nl80211_get_scanlist_wpactl(const char *ifname, char *buf, int *len)
 		if (nl80211_wpactl_recv(sock, reply, sizeof(reply)) <= 0)
 			continue;
 
+		printf("printing buffer\n");
+		printf("%s\n", reply);
+		printf("printed buffer\n");
+
 		/* got an event notification */
 		if (reply[0] == '<')
 		{
@@ -2665,6 +2673,10 @@ static int nl80211_get_scanlist_wpactl(const char *ifname, char *buf, int *len)
 	/* receive and parse scan results if the wait above didn't time out */
 	while (ready && nl80211_wpactl_recv(sock, reply, sizeof(reply)) > 0)
 	{
+		printf("printing buffer\n");
+		printf("%s\n", reply);
+		printf("printed buffer\n");
+
 		/* received an event notification, receive again */
 		if (reply[0] == '<')
 			continue;
