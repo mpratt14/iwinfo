@@ -20,6 +20,7 @@
 #define __IWINFO_UTILS_H_
 
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <net/if.h>
 #include <uci.h>
 #include <libubus.h>
@@ -67,5 +68,8 @@ int ieee80211_frequency_to_channel(int freq); //freq in MHz
 
 int hostapd_mode2band(const char *mode); //return int in enum nl80211_band
 int iwinfo_mhz2band(int mhz); //return int in enum nl80211_band
+
+int iwinfo_wpactl_request(int sock, char *buf, int blen, const char *cmd);
+int iwinfo_wpactl_open(const char *ifname, struct sockaddr_un *local, struct sockaddr_un *remote);
 
 #endif

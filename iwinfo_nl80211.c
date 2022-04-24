@@ -842,75 +842,11 @@ static int __nl80211_hostapd_query(const char *ifname, ...)
 #define nl80211_hostapd_query(ifname, ...) \
 	__nl80211_hostapd_query(ifname, ##__VA_ARGS__, NULL)
 
-
-static inline int nl80211_wpactl_recv(int sock, char *buf, int blen)
-{
-	fd_set rfds;
-	struct timeval tv = { 0, 256000 };
-
-	FD_ZERO(&rfds);
-	FD_SET(sock, &rfds);
-
-	memset(buf, 0, blen);
-
-	if (select(sock + 1, &rfds, NULL, NULL, &tv) < 0)
-		return -1;
-
-	if (!FD_ISSET(sock, &rfds))
-		return -1;
-
-	return recv(sock, buf, blen - 1, 0);
-}
-
-static int nl80211_wpactl_connect(const char *ifname, struct sockaddr_un *local)
-{
-	struct sockaddr_un remote = { 0 };
-	size_t remote_length, local_length;
-
-	int sock = socket(PF_UNIX, SOCK_DGRAM, 0);
-	if (sock < 0)
-		return sock;
-
-	remote.sun_family = AF_UNIX;
-	remote_length = sizeof(remote.sun_family) +
-		sprintf(remote.sun_path, "/var/run/wpa_supplicant-%s/%s",
-		        ifname, ifname);
-
-	if (fcntl(sock, F_SETFD, fcntl(sock, F_GETFD) | FD_CLOEXEC) < 0)
-	{
-		close(sock);
-		return -1;
-	}
-
-	if (connect(sock, (struct sockaddr *)&remote, remote_length))
-	{
-		remote_length = sizeof(remote.sun_family) +
-			sprintf(remote.sun_path, "/var/run/wpa_supplicant/%s", ifname);
-
-		if (connect(sock, (struct sockaddr *)&remote, remote_length))
-		{
-			close(sock);
-			return -1;
-		}
-	}
-
-	local->sun_family = AF_UNIX;
-	local_length = sizeof(local->sun_family) +
-		sprintf(local->sun_path, "/var/run/iwinfo-%s-%d", ifname, getpid());
-
-	if (bind(sock, (struct sockaddr *)local, local_length) < 0)
-	{
-		close(sock);
-		return -1;
-	}
-
-	return sock;
-}
-
 static int __nl80211_wpactl_query(const char *ifname, ...)
 {
 	va_list ap, ap_cur;
 	struct sockaddr_un local = { 0 };
+	struct sockaddr_un remote = { 0 };
 	int len, mode, found = 0, sock = -1;
 	char *search, *dest, *key, *val, *line, *pos, buf[512];
 
@@ -922,7 +858,18 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 	    mode != IWINFO_OPMODE_MESHPOINT)
 		return 0;
 
-	sock = nl80211_wpactl_connect(ifname, &local);
+        snprintf(remote.sun_path, sizeof(remote.sun_path),
+                "/var/run/wpa_supplicant/%s", ifname);
+
+	sock = iwinfo_wpactl_open(ifname, &local, &remote);
+
+	if (sock < 0)
+	{
+	        snprintf(remote.sun_path, sizeof(remote.sun_path),
+                "/var/run/wpa_supplicant-%s/%s", ifname, ifname);
+
+		sock = iwinfo_wpactl_open(ifname, &local, &remote);
+	}
 
 	if (sock < 0)
 		return 0;
@@ -942,20 +889,10 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 
 	va_end(ap_cur);
 
-	send(sock, "STATUS", 6, 0);
+	iwinfo_wpactl_request(sock, buf, sizeof(buf), "STATUS")
 
 	while (true)
 	{
-		if (nl80211_wpactl_recv(sock, buf, sizeof(buf)) <= 0)
-			break;
-
-		printf("printing buffer\n");
-		printf("%s\n", buf);
-		printf("printed buffer\n");
-
-		if (buf[0] == '<')
-			continue;
-
 		for (line = strtok_r(buf, "\n", &pos);
 			 line != NULL;
 			 line = strtok_r(NULL, "\n", &pos))
@@ -2616,9 +2553,10 @@ static int nl80211_get_scanlist_wpactl(const char *ifname, char *buf, int *len)
 	int sock, qmax, rssi, tries, count = -1, ready = 0;
 	char *pos, *line, *bssid, *freq, *signal, *flags, *ssid, reply[4096];
 	struct sockaddr_un local = { 0 };
+	struct sockaddr_un remote = { 0 };
 	struct iwinfo_scanlist_entry *e = (struct iwinfo_scanlist_entry *)buf;
 
-	sock = nl80211_wpactl_connect(ifname, &local);
+	sock = iwinfo_wpactl_open(ifname, &local, &remote);
 
 	if (sock < 0)
 		return sock;
@@ -2628,14 +2566,14 @@ static int nl80211_get_scanlist_wpactl(const char *ifname, char *buf, int *len)
 
 	/*
 	 * wait for scan results:
-	 *   nl80211_wpactl_recv() will use a timeout of 256ms and we need to scan
+	 *   iwinfo_wpactl_request() will use a timeout of 256ms and we need to scan
 	 *   72 channels at most. We'll also receive two "OK" messages acknowledging
 	 *   the "ATTACH" and "SCAN" commands and the driver might need a bit extra
 	 *   time to process the results, so try 72 + 2 + 1 times.
 	 */
 	for (tries = 0; tries < 75; tries++)
 	{
-		if (nl80211_wpactl_recv(sock, reply, sizeof(reply)) <= 0)
+		if (iwinfo_wpactl_request(sock, reply, sizeof(reply), "PING") <= 0)
 			continue;
 
 		printf("printing buffer\n");
@@ -2671,7 +2609,7 @@ static int nl80211_get_scanlist_wpactl(const char *ifname, char *buf, int *len)
 	}
 
 	/* receive and parse scan results if the wait above didn't time out */
-	while (ready && nl80211_wpactl_recv(sock, reply, sizeof(reply)) > 0)
+	while (ready && iwinfo_wpactl_request(sock, reply, sizeof(reply), "PING") > 0)
 	{
 		printf("printing buffer\n");
 		printf("%s\n", reply);

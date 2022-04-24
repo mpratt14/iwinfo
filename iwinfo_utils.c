@@ -661,3 +661,75 @@ int iwinfo_mhz2band(int mhz)
 	else
 		return -1;
 }
+
+int iwinfo_wpactl_request(int sock, char *buf, int blen, const char *cmd)
+{
+	fd_set rfds;
+	struct timeval tv = { 0, 256000 };
+	int ret;
+
+	memset(buf, 0, blen);
+
+	if (send(sock, cmd, strlen(cmd), 0) < 0)
+	{
+		close(sock);
+		return -1;
+	}
+
+	while (true)
+	{
+		FD_ZERO(&rfds);
+		FD_SET(sock, &rfds);
+
+		ret = select(sock + 1, &rfds, NULL, NULL, &tv);
+
+		if (ret < 0)
+			return -1;
+
+		if (!FD_ISSET(sock, &rfds))
+			return -1;
+
+		ret = recv(sock, buf, blen - 1, 0);
+
+		if (ret < 0)
+			return -1;
+
+                printf("printing buffer\n");
+                printf("%s\n", buf);
+                printf("printed buffer\n");
+
+                if (ret > 0 && buf[0] == '<')
+                        continue;
+
+		break;
+	}
+
+	return 0;
+}
+
+int iwinfo_wpactl_open(const char *ifname, struct sockaddr_un *local, struct sockaddr_un *remote)
+{
+	int sock = socket(PF_UNIX, SOCK_DGRAM, 0);
+	if (sock < 0)
+		return sock;
+
+	local->sun_family = AF_UNIX;
+	remote->sun_family = AF_UNIX;
+
+	snprintf(local->sun_path, sizeof(local->sun_path),
+		"/var/run/iwinfo-%s-%d", ifname, getpid());
+
+	if (bind(sock, (struct sockaddr *) local, sizeof(local)) < 0)
+	{
+		close(sock);
+		return -1;
+	}
+
+	if (connect(sock, (struct sockaddr *) remote, sizeof(remote)) < 0)
+	{
+		close(sock);
+		return -1;
+	}
+
+	return sock;
+}
