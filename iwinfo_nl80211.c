@@ -874,6 +874,8 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 	if (sock < 0)
 		return 0;
 
+	printf("socket fd: %d\n", sock);
+
 	va_start(ap, ifname);
 
 	/* clear all destination buffers */
@@ -889,7 +891,9 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
 
 	va_end(ap_cur);
 
-	iwinfo_wpactl_request(sock, buf, sizeof(buf), "STATUS")
+	while (true) {
+		iwinfo_wpactl_request(sock, buf, sizeof(buf), "PING");
+	}
 
 	while (true)
 	{

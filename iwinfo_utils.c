@@ -686,8 +686,8 @@ int iwinfo_wpactl_request(int sock, char *buf, int blen, const char *cmd)
 		if (ret < 0)
 			return -1;
 
-		if (!FD_ISSET(sock, &rfds))
-			return -1;
+//		if (!FD_ISSET(sock, &rfds))
+//			return -1;
 
 		ret = recv(sock, buf, blen - 1, 0);
 
