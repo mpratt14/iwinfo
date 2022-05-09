@@ -678,15 +678,7 @@ int iwinfo_wpactl_request(int sock, char *buf, int blen, const char *cmd)
 
 	while (true)
 	{
-		FD_ZERO(&rfds);
-		FD_SET(sock, &rfds);
-
-		ret = select(sock + 1, &rfds, NULL, NULL, &tv);
-
-		if (ret < 0)
-			return -1;
-
-		if (!FD_ISSET(sock, &rfds))
+		if (usock_wait_ready(sock, 256))
 			return -1;
 
 		ret = recv(sock, buf, blen - 1, 0);

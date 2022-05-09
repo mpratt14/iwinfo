@@ -23,6 +23,8 @@
 #include <sys/un.h>
 #include <net/if.h>
 #include <uci.h>
+
+#include <libubox/usock.h>
 #include <libubus.h>
 
 #include "iwinfo.h"

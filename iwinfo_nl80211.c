@@ -861,14 +861,16 @@ static int __nl80211_wpactl_query(const char *ifname, ...)
         snprintf(remote.sun_path, sizeof(remote.sun_path),
                 "/var/run/wpa_supplicant/%s", ifname);
 
-	sock = iwinfo_wpactl_open(ifname, &local, &remote);
+//	sock = iwinfo_wpactl_open(ifname, &local, &remote);
+	sock = usock(USOCK_UNIX | USOCK_NONBLOCK, remote.sun_path, NULL);
 
 	if (sock < 0)
 	{
 	        snprintf(remote.sun_path, sizeof(remote.sun_path),
                 "/var/run/wpa_supplicant-%s/%s", ifname, ifname);
 
-		sock = iwinfo_wpactl_open(ifname, &local, &remote);
+//		sock = iwinfo_wpactl_open(ifname, &local, &remote);
+		sock = usock(USOCK_UNIX | USOCK_NONBLOCK, remote.sun_path, NULL);
 	}
 
 	if (sock < 0)
